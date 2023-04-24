@@ -1,6 +1,6 @@
 import pandas as pd 
 import streamlit as st 
-from utils import createDataset,getPriceChange
+from utils import createDataset,getPriceChange,normalizePrice
 import datetime
 import time
 import plotly.express as px
@@ -85,32 +85,22 @@ dfGraph2 = dataset.query(
 #Mainpage
 st.title(":bar_chart: Price Tracker Dashboard")
 st.markdown("##")
-# fig = make_subplots(rows=2, cols=1,shared_xaxes=True,subplot_titles=(f"{tickers1}",f"{tickers2}")) 
-
-# #Draw first graph 
-# for i in attr: 
-#     fig.append_trace(go.Scatter(x = dfGraph1["Date"], y=dfGraph1[i], name=f"{i}"), 1,1)
-
-# #Draw second graph 
-# for i in attr: 
-#     fig.append_trace(go.Scatter(x = dfGraph2["Date"], y=dfGraph2[i], name=f"{i}"), 2,1)
-
-# st.plotly_chart(fig)
 
 
+st.subheader("Price change during the period")
 data = [ ]
 
 for i in attr: 
-    data.append(go.Scatter(x = dfGraph1["Date"], y=dfGraph1[i], name=f"{i}"))
-for i in attr: 
-    data.append(go.Scatter(x = dfGraph2["Date"], y=dfGraph2[i], name=f"{i}",yaxis='y2'))
+    data.append(go.Scatter(x = dfGraph1["Date"], y=dfGraph1[i], name=f"{tickers1} {i}"))
+    data.append(go.Scatter(x = dfGraph2["Date"], y=dfGraph2[i], name=f"{tickers2} {i}",yaxis='y2'))
+
 
 
 # Add titles and color the font of the titles to match that of the traces
 # 'SteelBlue' and 'DarkOrange' are the defaults of the first two colors.
 
-y1 = go.YAxis(title=f"Price of {tickers1}", titlefont=go.Font(color='SteelBlue'))
-y2 = go.YAxis(title=f"Price of {tickers2}", titlefont=go.Font(color='DarkOrange'))
+y1 = go.layout.YAxis(title=f"Price of {tickers1}", titlefont=go.layout.yaxis.title.Font(color='LightBlue'))
+y2 = go.layout.YAxis(title=f"Price of {tickers2}", titlefont=go.layout.yaxis.title.Font(color='SteelBlue'))
 
 # update second y axis to be position appropriately
 y2.update(overlaying='y', side='right')
@@ -120,22 +110,38 @@ layout = go.Layout(yaxis1 = y1, yaxis2 = y2)
 
 fig = go.Figure(data=data, layout=layout)
 
-st.plotly_chart(fig)
 
+
+#Check box to normalize
+normal = st.checkbox("Normalize")
+normalizePrice(dfGraph1,datetime.datetime(start.year,start.month,start.day),"High","df1norm")
+normalizePrice(dfGraph2,datetime.datetime(start.year,start.month,start.day),"High","df2norm")
+if normal: 
+    data = [
+        go.Scatter(x = dfGraph1["Date"], y=dfGraph1["df1norm"], name=tickers1),
+        go.Scatter(x = dfGraph2["Date"], y = dfGraph2["df2norm"], name=tickers2)
+    ]
+    fig = go.Figure(data=data, layout=dict())
+
+st.plotly_chart(fig)
 
 # Calculate price changes 
 priceChange1 = getPriceChange(dfGraph1,attr[0])
-st.subheader("Price change during the period")
 if priceChange1 >= 0:
-    st.subheader("{}: :green[+ {:.1f}%]".format(tickers1,priceChange1))
+    st.markdown("{}: :green[+ {:.1f}%]".format(tickers1,priceChange1))
 else:
-    st.subheader("{}: :red[- {:.1f}%]".format(tickers1,abs(priceChange1)))
+    st.markdown("{}: :red[- {:.1f}%]".format(tickers1,abs(priceChange1)))
 
 priceChange2 = getPriceChange(dfGraph2,attr[0])
 if priceChange2 >= 0:
-    st.subheader("{}: :green[+ {:.1f}%]".format(tickers2,priceChange2))
+    st.markdown("{}: :green[+ {:.1f}%]".format(tickers2,priceChange2))
 else:
-    st.subheader("{}: :red[- {:.1f}%]".format(tickers2,abs(priceChange2)))
+    st.markdown("{}: :red[- {:.1f}%]".format(tickers2,abs(priceChange2)))
 
 
 st.markdown("---")
+
+st.subheader("Technical Analysis")
+concat = pd.concat([dfGraph1.set_index(dfGraph1["Date"])["df1norm"],dfGraph2.set_index(dfGraph2["Date"])["df2norm"]],axis=1,join="inner")
+corr = concat["df1norm"].corr(concat["df2norm"])
+st.markdown("The correllation between price of {} and {} is: {:.3f}".format(tickers1,tickers2,corr))

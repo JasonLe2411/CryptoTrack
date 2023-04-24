@@ -25,7 +25,16 @@ def getPriceChange(dataset,attr="High"):
         return ((float(endPrice) / float(startPrice)) - 1)*100
     except:
         return "There's no data on the dataset"
+
+def normalizePrice(dataset,date,attr,name):
+    price = dataset[dataset["Date"]==date]["High"]
+    dataset[name] = dataset["High"]//(price.iloc[0]/100)
+    return True
+
     
+
+
+
 if __name__ == "__main__":
     tickers = ["BTC-USD","^GSPC"]
     #Start from 2023/4/1 23:59
