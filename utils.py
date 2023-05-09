@@ -27,11 +27,12 @@ def getPriceChange(dataset,attr="High"):
         return "There's no data on the dataset"
 
 def normalizePrice(dataset,date,attr,name):
+    #print(dataset[dataset["Date"]==date])
     price = dataset[dataset["Date"]==date]["High"]
     dataset[name] = dataset["High"]//(price.iloc[0]/100)
     return True
 
-    
+
 
 
 

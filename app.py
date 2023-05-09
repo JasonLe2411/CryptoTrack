@@ -6,6 +6,7 @@ import time
 import plotly.express as px
 from plotly import graph_objects as go 
 from plotly.subplots import make_subplots
+import yfinance as yf
 
 
 tickers = ["BTC-USD","^GSPC","ETH-USD","^DJI"]
@@ -16,23 +17,7 @@ for i in range(len(names)):
     tickerDict[names[i]] = tickers[i]
 
 
-#Start from 2021/1/1 23:59
-period1 = int(time.mktime(datetime.datetime(2021,1,1,23,59).timetuple()))
-#Ends at this moment
-period2 = int(time.mktime(datetime.datetime.now().timetuple()))
-#Intervals
-interval = "1d"
-
-dataset = createDataset(tickers,period1,period2,interval)
 selectedAttributes = ["Open","High","Low","Close","Adj Close","MA20","MA200"]
-
-
-#Change date column to datetime type:
-dataset['Date'] = pd.to_datetime(dataset['Date'], format="%Y-%m-%d")
-
-#Add Moving averages:
-dataset["MA20"] = dataset.Close.rolling(20).mean()
-dataset["MA200"] = dataset.Close.rolling(200).mean()
 
 
 st.set_page_config(page_title="Crypto Price Tracker",
@@ -62,6 +47,7 @@ tickers2 = st.sidebar.radio(
 )
 ticker2 = tickerDict[tickers2]
 
+
 attr = st.sidebar.multiselect(
     "Select your attributes:",
     options= selectedAttributes,
@@ -74,13 +60,13 @@ columns = attr + ["Date","Ticker"]
 
 
 
-dfGraph1 = dataset.query(
-    "Ticker == @ticker1 & @start <= Date <= @end" 
-)[columns]
 
-dfGraph2 = dataset.query(
-    "Ticker == @ticker2 & @start <= Date <= @end"
-)[columns]
+dfGraph1 = yf.download(ticker1, start, end,interval="1d")
+dfGraph2 = yf.download(ticker2, start, end,interval="1d")
+
+# #Make date as index:
+# dfGraph1 = dfGraph1.reindex(dfGraph1["Date"]).bfill().ffill()
+# dfGraph2 = dfGraph2.reindex(dfGraph2["Date"]).bfill().ffill()
 
 #Mainpage
 st.title(":bar_chart: Price Tracker Dashboard")
@@ -91,8 +77,8 @@ st.subheader("Price change during the period")
 data = [ ]
 
 for i in attr: 
-    data.append(go.Scatter(x = dfGraph1["Date"], y=dfGraph1[i], name=f"{tickers1} {i}"))
-    data.append(go.Scatter(x = dfGraph2["Date"], y=dfGraph2[i], name=f"{tickers2} {i}",yaxis='y2'))
+    data.append(go.Scatter(x = dfGraph1.index, y=dfGraph1[i], name=f"{tickers1} {i}"))
+    data.append(go.Scatter(x = dfGraph2.index, y=dfGraph2[i], name=f"{tickers2} {i}",yaxis='y2'))
 
 
 
@@ -112,14 +98,18 @@ fig = go.Figure(data=data, layout=layout)
 
 
 
-#Check box to normalize
+# #Check box to normalize
 normal = st.checkbox("Normalize")
-normalizePrice(dfGraph1,datetime.datetime(start.year,start.month,start.day),"High","df1norm")
-normalizePrice(dfGraph2,datetime.datetime(start.year,start.month,start.day),"High","df2norm")
+
+dfGraph1['df1norm'] = (dfGraph1['High'] - dfGraph1['High'].min()) / (dfGraph1['High'].max() - dfGraph1['High'].min())
+# Normalize the 'High' column in df2
+dfGraph2['df2norm'] = (dfGraph2['High'] - dfGraph2['High'].min()) / (dfGraph2['High'].max() - dfGraph2['High'].min())
+
 if normal: 
+    
     data = [
-        go.Scatter(x = dfGraph1["Date"], y=dfGraph1["df1norm"], name=tickers1),
-        go.Scatter(x = dfGraph2["Date"], y = dfGraph2["df2norm"], name=tickers2)
+        go.Scatter(x = dfGraph1.index, y=dfGraph1["df1norm"], name=tickers1),
+        go.Scatter(x = dfGraph2.index, y = dfGraph2["df2norm"], name=tickers2)
     ]
     fig = go.Figure(data=data, layout=dict())
 
@@ -139,9 +129,12 @@ else:
     st.markdown("{}: :red[- {:.1f}%]".format(tickers2,abs(priceChange2)))
 
 
-st.markdown("---")
+# st.markdown("---")
 
-st.subheader("Technical Analysis")
-concat = pd.concat([dfGraph1.set_index(dfGraph1["Date"])["df1norm"],dfGraph2.set_index(dfGraph2["Date"])["df2norm"]],axis=1,join="inner")
-corr = concat["df1norm"].corr(concat["df2norm"])
-st.markdown("The correllation between price of {} and {} is: {:.3f}".format(tickers1,tickers2,corr))
+# Make sure both dataframes have the same date range
+merged_df = pd.merge(dfGraph1, dfGraph2, how='inner', left_index=True, right_index=True)
+
+# Calculate the correlation
+correlation = merged_df["df1norm"].corr(merged_df['df2norm'])
+
+st.markdown("The correllation between price of {} and {} is: {:.3f}".format(tickers1,tickers2,correlation))
