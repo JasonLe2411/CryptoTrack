@@ -9,15 +9,15 @@ from plotly.subplots import make_subplots
 import yfinance as yf
 
 
-tickers = ["BTC-USD","^GSPC","ETH-USD","^DJI"]
-names = ["Bitcoin","S&P 500","Ethereum","Dow Jones"]
+tickers = ["BTC-USD","ETH-USD","ETC-USD","ADA-USD","XRP-USD","XLM-USD","LTC-USD","BCH-USD","^GSPC","^DJI"]
+names = ["Bitcoin","Ethereum","Ethereum Classic","Cardano","Ripple XRP","Stellar","Litecoin","Bitcoin Cash","S&P 500","Dow Jones"]
 
 tickerDict = {}
 for i in range(len(names)):
     tickerDict[names[i]] = tickers[i]
 
 
-selectedAttributes = ["Open","High","Low","Close","Adj Close","MA20","MA200"]
+selectedAttributes = ["Open","High","Low","Close","Adj Close"]
 
 
 st.set_page_config(page_title="Crypto Price Tracker",
